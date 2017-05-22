@@ -1,0 +1,27 @@
+{
+  "name": "metalsmith-git",
+  "version": "0.0.1",
+  "description": "gets previous versions of files from git and makes them available to metalsmith",
+  "main": "index.js",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "github.com/tmalch/metalsmith-git"
+  },
+  "dependencies": {
+    "metalsmith": "^2.1.0",
+    "debug": "^2.6.0",
+    "gray-matter": "^2.1.0",
+    "is-utf8": "~0.2.0",
+    "stat-mode": "^0.2.0",
+    "nodegit": "^0.18.3",
+    "multimatch": "^2.1.0"
+  },
+  "author": "Thomas Malcher",
+  "license": "MIT",
+  "keywords": [
+    "metalsmith",
+    "git"
+  ]
+}
+
