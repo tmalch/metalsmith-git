@@ -12,11 +12,16 @@ var fs = require('fs');
 
 module.exports = plugin;
 
+const flatten = arr => arr.reduce(
+  (acc, val) => acc.concat(
+    Array.isArray(val) ? flatten(val) : val
+  ),
+  []
+);
 
 function plugin(opts){
   opts.pattern = opts.pattern || [];
   opts.layout = opts.layout || null;  // if given this overrides the layout from the file
-  
   
   var repo;
   return function (files, metalsmith, done){
@@ -32,41 +37,32 @@ function plugin(opts){
     }).then(function(firstCommitOnMaster){
       let filtered_files = Object.keys(files)
                     .filter(f => multimatch(f, opts.pattern).length)
-      let versioned_files = filtered_files.map(function(file){
-              let gitfilepath = path.join(prefix, file);
-              return getVersionsOf(gitfilepath, firstCommitOnMaster)
-                  .then(function(versions){
-                      debug("%s has %s versions	", file, versions.length);
-                      
-                      files[file].versions = [];
-                      versions.reverse().map(function(version, version_nr){
-                        let data = parseContent(version.blob)
-                        data.commit = {
-                              id: version.commit.id().toString(),
-                              message: version.commit.message(),
-                              author: version.commit.author().name(),
-                              date: version.commit.date()
-                        }
-                        data.version = version_nr;
-                        return data
-                      })
-                      .forEach(function(data){
-                        if(data.version == versions.length-1){ //newest version
-                          files[file].version = data.version;
-                          files[file].commit = data.commit;
-                          return
-                        }
-                        if(opts.layout){
-                          data.layout = opts.layout;
-                        }
-                        let version_name = file+"_versions/v"+data.version
-                        files[version_name] = data;
-                        files[file].versions.push(data);
-                      })
-                  })
-          }
-      );
-      return Promise.all(versioned_files)
+      let seq = Promise.resolve()
+      filtered_files.forEach(function(file){
+        let gitfilepath = path.join(prefix, file);
+        seq = seq.then(() => getVersionsOf(gitfilepath, firstCommitOnMaster))
+        .then(flatten)
+        .then(function(versions){
+              debug("%s has %s versions	", file, versions.length);
+              let parsed = versions.reverse()
+                    .map((version, version_nr)  => parseVersion(version, version_nr))
+
+              let newest = parsed[parsed.length-1];
+              parsed = parsed.slice(0, parsed.length-1)
+              files[file].version = newest.version;
+              files[file].commit = newest.commit;
+              files[file].versions = parsed;
+
+              parsed.forEach(function(parsed){
+                if(opts.layout){
+                  parsed.layout = opts.layout;
+                }
+                let version_name = file+"_versions/v"+parsed.version+".md";
+                files[version_name] = parsed;
+              })
+        })
+      })
+      return seq;
     }).then(function(){
         done();
      }).catch(function(e){
@@ -75,27 +71,38 @@ function plugin(opts){
         done();
      });
   }
-  
+
+
   /**
   * returns a all versions of given file `gitfilepath` from `from_commit` on backwards.
   *
   * @param {String} path to file relative to git repository
   * @param {Commit} starting commit
-  * @return {Promise} list of Buffer objects
+  * @return {Promise} possibly nested list of objects with commit and blob attribute
   */
   function getVersionsOf(gitfilepath, from_commit){
     let walker = repo.createRevWalk();
     walker.push(from_commit.sha());
     walker.sorting(Git.Revwalk.SORT.Time);
+    
     return walker.fileHistoryWalk(gitfilepath, 1000).then(function(history){
-          debug("history length of %s: %s ", gitfilepath, history.length)
-          return Promise.all(
-            history.map(function(history_entry){
-              return getBlobOf(gitfilepath, history_entry.commit).then(function(blob, idx){
-                return {commit: history_entry.commit, blob:blob}
-              });
-            })
-          );
+          let versions = []
+          history.forEach(function(history_entry){
+             //history_entry.status: 4=rename, 1=add, 3=edited
+             if(history_entry.status == 4 && history_entry.oldName == gitfilepath){ 
+                return // for this commit only the file newName exists 
+             }
+             let version = getBlobOf(gitfilepath, history_entry.commit)
+                .then(function(blob, idx){
+                  return {commit: history_entry.commit, blob:blob}
+                });
+             versions.push(version); 
+             if(history_entry.status == 4 && history_entry.newName == gitfilepath){
+                debug("renamed %s to %s", history_entry.oldName, history_entry.newName)
+                versions.push(getVersionsOf(history_entry.oldName, history_entry.commit));
+             }
+          })
+         return Promise.all(versions);
     });
   }
   
@@ -113,15 +120,25 @@ function plugin(opts){
           })
           .then(function(tree_entry){
             return tree_entry.getBlob();
-          })
-          .then(function(blob){
-            return blob;
-          })
+          }).catch(e => debug("error getting %s at %s: $s",file_path,commit, e))
+  }
+  /**
+  * convert a version object as returned by `getVersionsOf` into a file object that can be injected into metalsmith
+  */
+  function parseVersion(version, version_nr){
+      let data = parseContent(version.blob)
+      data.commit = {
+            id: version.commit.id().toString(),
+            message: version.commit.message(),
+            author: version.commit.author().name(),
+            date: version.commit.date()
+      }
+      data.version = version_nr;
+      return data
   }
   
   /**
-  * parse blob like metalsmith would parse a file
-  * 
+  * parse a blob like metalsmith would parse a file
   */
   function parseContent(blob){
     let frontmatter = true;//metalsmith.frontmatter();
