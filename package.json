@@ -3,10 +3,10 @@
   "version": "0.0.1",
   "description": "gets previous versions of files from git and makes them available to metalsmith",
   "main": "index.js",
-  "private": true,
+  "homepage": "https://github.com/tmalch/metalsmith-git",
   "repository": {
     "type": "git",
-    "url": "github.com/tmalch/metalsmith-git"
+    "url": "https://github.com/tmalch/metalsmith-git"
   },
   "dependencies": {
     "metalsmith": "^2.1.0",
