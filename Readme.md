@@ -22,7 +22,7 @@ All previous versions of the file are also transformed to javascript objects.
 Just like they were in the filesystem and the metalsmith core would load them. 
 So the content, parsed frontmatter, stats and so on are available for 
 further processing by the following plugins in the pipeline.
-They are named according to the schema: <filepath>_versions/v<version>.md. 
+They are named according to the schema: `<filepath>_versions/v<version>.md`. 
 
 For example given the file `path_to/testpost.md`:
 ```
@@ -53,7 +53,7 @@ metalsmith-git will generate:
     commit: { id: '5738102cd04d0923ec959a861013f64dc16e0843',
               message: 'change title of testpost',
               author: 'Thomas Malcher',
-              date: Tue May 23 2017 09:22:32 (CEST) 
+              date: Tue May 23 2017 09:22 
     },
     versions: [ { title: "A Boring Title", 
                   version: 2, 
