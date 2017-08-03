@@ -1,6 +1,6 @@
 {
   "name": "metalsmith-git",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "gets previous versions of files from git and makes them available to metalsmith",
   "main": "index.js",
   "homepage": "https://github.com/tmalch/metalsmith-git",
@@ -24,4 +24,3 @@
     "git"
   ]
 }
-
